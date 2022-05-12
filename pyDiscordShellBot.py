@@ -8,8 +8,19 @@ import signal
 import re
 import requests
 import subprocess
-import tempfile
-import time
+import argparse
+import json
+import re
+from typing import Any, Iterator, List
+from sqlalchemy import null
+from tabulate import tabulate
+from pathlib import Path
+from urllib.parse import urlencode, urlparse, urlunparse
+import requests
+from datetime import date, datetime, timedelta
+from requests.exceptions import ConnectionError
+from FreqtradeApiExecution import FreqtradeApiExecution
+from rest_client import FtRestClient
 
 
 __author__ = "EnriqueMoran"
@@ -41,7 +52,6 @@ UPDATE_COMMAND = None         # Command used to update system
 UPGRADE_COMMAND = None        # Command used to upgrade system
 INSTALL_COMMAND = None        # Command used to install a package
 REMOVE_COMMAND = None         # Command used to remove a package
-
 
 def format_as_code(msg, inline = False):
     if inline:
@@ -229,7 +239,7 @@ def register_log(message):
     global LOG_LIMIT, LOG_FILE, LOG_LINES
     LOG_LINES += 1
     with open(LOG_FILE, 'a+') as f:
-        now = datetime.datetime.now().strftime("%m-%d-%y %H:%M:%S ")
+        now = datetime.now().strftime("%m-%d-%y %H:%M:%S ")
         f.write(now + "[" + str(message.author.name) + " (" +
                 str(message.author.id) + ")]: " + str(message.content) + "\n")
     if LOG_LIMIT > 0 and LOG_LINES > LOG_LIMIT:
@@ -431,6 +441,44 @@ async def remove_package(message):
         await message.channel.send(str(error))
         await message.channel.send(str(error_type))
 
+async def show_freqtrade(message):
+    """
+    Run update command depending on SO distro
+    """
+
+    # TODO: paralellize loading message to avoid discord edit limit
+    request, method = message.content.split(" ")
+    output_text = "Freqtrade command: " + message.content
+    loading_items = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
+    i = 0
+    guild = discord.utils.get(CLIENT.guilds, name=GUILD_NAME)
+    channel = discord.utils.get(guild.channels, name=CHANNELS_NAME[0],
+                                type=discord.ChannelType.text)
+
+
+    msg_output = await channel.send(output_text)
+    
+    try:
+        url = "127.0.0.1" #config.get('api_server', {}).get('server_url', '127.0.0.1')
+        port = "8080" #config.get('api_server', {}).get('listen_port', '8080')
+        server_url = f"http://{url}:{port}"
+        client = FtRestClient(server_url, "user_name", "password")
+
+        print(str(getattr(client, method)()))
+
+        api_return = getattr(client, method)()
+
+        freqtrade_api_execution = FreqtradeApiExecution(channel)
+        await getattr(freqtrade_api_execution, method)(api_return)
+
+
+    except Exception as e:
+        error = "Error ocurred: " + format_as_code(str(e), True)
+        error_type = "Error type: " + str((e.__class__.__name__))
+        await channel.send(str(error))
+        await channel.send(str(error_type))
+
+
 
 async def show_forbidden_commands(message):
     res = ""
@@ -482,6 +530,7 @@ async def send_welcome_msg(guild):
               "\n    **· /upgrade**: Upgrade system using configured " + \
               "package system." + \
               "\n    **· /install**: Install a package." + \
+              "\n    **· /freqtrade**: Show freqtrade." + \
               "\n    **· /uninstall**: Remove an installed package." + \
               "\n    **· /forbidden**: Show unavailable commands." + \
               "\n    **· /help**: Show this message." + \
@@ -530,6 +579,7 @@ async def send_command(command, channel):
                 # Empty message that raises api 400 error
                 # Send special blank character
                 output += "\n"
+                print()
                 await msg_output.edit(content=output)
             else:
                 try:
@@ -684,6 +734,10 @@ async def on_message(message):
     elif message.content.lower() == '/forbidden':    # Forbidden commands
         await message.channel.send("Currently forbidden commands:")
         await show_forbidden_commands(message)
+    elif 'freqtrade' in message.content.lower():    # Forbidden commands
+        print("Show freqtrade executed")
+        await message.channel.send("freqtrade:")
+        await show_freqtrade(message)
     elif message.content.lower() == '/help':    # Show help message
         guild = discord.utils.get(CLIENT.guilds, name=GUILD_NAME)
         await send_welcome_msg(guild)
