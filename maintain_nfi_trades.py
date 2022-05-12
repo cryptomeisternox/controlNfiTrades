@@ -45,8 +45,10 @@ class MaintainNFIHolds:
 
         _hold_trades = self._load_nfi_hold()
         _hold_trades["trade_pairs"][pair] = float(profit)
-
+        #for i in trade_pairs["trade_pairs"]:
+        #    _hold_trades["trade_pairs"][i] = trade_pairs["trade_pairs"][i]
         self._save_nfi_hold(_hold_trades)
+        self.list_trade_pair()
 
     def remove_trade_pair(self, pair):
         """The remove_trade_pair() method removes a trade_pair from JSON file.
@@ -86,7 +88,7 @@ class MaintainNFIHolds:
             "13": -0.02
         }
         :param pair: Pair to buy (ETH/BTC)
-        :param profit: Optional - percent i.e. 0.005 or -0.005 (means  0.5% is met)
+        :param profit: Optional - percent i.e. 0.005 or -0.005
         :return: json object
         """
 
@@ -96,6 +98,7 @@ class MaintainNFIHolds:
         #    _hold_trades["trade_pairs"][i] = trade_pairs["trade_pairs"][i]
 
         self._save_nfi_hold(_hold_trades)
+        self.list_trade_ids()
 
     def remove_trade_id(self, pair):
         """The remove_trade_id() method removes a trade_id from JSON file.
