@@ -21,6 +21,7 @@ from datetime import date, datetime, timedelta
 from requests.exceptions import ConnectionError
 from FreqtradeApiExecution import FreqtradeApiExecution
 from rest_client import FtRestClient
+from maintain_nfi_trades import MaintainNFIHolds
 
 
 __author__ = "EnriqueMoran"
@@ -51,6 +52,7 @@ CURRENT_PROCESS = None        # Current process being executed
 UPDATE_COMMAND = None         # Command used to update system
 UPGRADE_COMMAND = None        # Command used to upgrade system
 INSTALL_COMMAND = None        # Command used to install a package
+NFIHOLD_COMMAND = None
 REMOVE_COMMAND = None         # Command used to remove a package
 
 def format_as_code(msg, inline = False):
@@ -93,11 +95,12 @@ def initialize():
 
     CUSTOM_COMMANDS = ["/update", "/upgrade", "/install",
                        "/uninstall", "/forbidden", "/help",
-                       "/reload", "/stop", "/getfile"]
+                       "/reload", "/stop", "/getfile", "/nfihold"]
     COMMANDS_QUEUE = {
                       'update': set(),
                       'upgrade': set(),
                       'install': {},
+                      'nfihold': {},
                       'uninstall': {}
     }
     if not error:
@@ -110,14 +113,14 @@ def initialize():
         with open(LOG_FILE) as f:
             LOG_LINES = sum(1 for _ in f)
     else:
-        print(error_msg)
+        # print(error_msg)
         exit()
 
 
 def check_config():
     global TOKEN, GUILD_NAME, CHANNELS_NAME, PASSWORD, SHARED_FOLDER, \
            USERS_FILE, LOG_FILE, LOG_LIMIT, ENABLE_ROOT, FORBIDDEN_COMMANDS, \
-           UPDATE_COMMAND, UPGRADE_COMMAND, INSTALL_COMMAND, REMOVE_COMMAND
+           UPDATE_COMMAND, UPGRADE_COMMAND, INSTALL_COMMAND, NFIHOLD_COMMAND, REMOVE_COMMAND
 
     error = False
     error_msg = "Config file not properly filled, errors:"
@@ -162,6 +165,9 @@ def check_config():
     if not INSTALL_COMMAND:
         error = True
         error_msg += "\n - Install package command is empty."
+    if not NFIHOLD_COMMAND:
+        error = False
+        error_msg += "\n - Config for NFIHOLD is empty."
     if not REMOVE_COMMAND:
         error = True
         error_msg += "\n - Remove package command is empty."
@@ -279,7 +285,7 @@ async def update_system(message):
     msg_output = await channel.send(output_text)
     try:
         command = f'echo {message.content} | sudo -S {UPDATE_COMMAND} -y'
-        print(f"command: {command}")
+        # print(f"command: {command}")
         proc = subprocess.Popen(command, shell=True, stdin=None,
                                 stdout=subprocess.PIPE,
                                 executable="/bin/bash")
@@ -441,6 +447,68 @@ async def remove_package(message):
         await message.channel.send(str(error))
         await message.channel.send(str(error_type))
 
+
+
+async def maintain_nfi(message):
+    """
+    Run update command depending on SO distro
+    """
+
+    global NFIHOLD_COMMAND
+    #if message.content.strip().lower() == 'yes':
+    #await ask_params(message)
+    #await message.send("Enter " + format_as_code("sudo", True) + " password.")
+    #await channel.send('Say hello!')
+
+    #def check(m):
+    #    return m.content == 'hello' and m.channel == channel
+
+    #msg = await channel.wait_for('message', check=check)
+    #await channel.send('Hello {.author}!'.format(msg))
+
+
+    # TODO: paralellize loading message to avoid discord edit limit
+    #request, method = message.content.split(" ")[0], message.content.split(" ")[0]
+
+    request, method = message.content.split(" ")[0], message.content.split(" ")[1:]
+
+    if request == "/nfihold":
+        return
+
+    nfi_method = request
+
+    nfi_params = method
+
+    #print request
+    #print(method)
+
+
+    #output_text = "NFI command: " + message.content
+
+    #await channel.send(output_text)
+    i = 0
+    guild = discord.utils.get(CLIENT.guilds, name=GUILD_NAME)
+    channel = discord.utils.get(guild.channels, name=CHANNELS_NAME[0],
+                                type=discord.ChannelType.text)
+
+    
+    try:
+
+        maintain_nfi_holds = MaintainNFIHolds(channel)
+        #getattr(maintain_nfi_holds, request)(*args["command_arguments"])
+        #output_text = maintain_nfi_holds.list_trade_ids()
+        output_text = getattr(maintain_nfi_holds, nfi_method)(*nfi_params)
+
+        await channel.send(format_as_code(output_text,False))
+
+    except Exception as e:
+        error = "Error ocurred: " + format_as_code(str(e), True)
+        error_type = "Error type: " + str((e.__class__.__name__))
+        await channel.send(str(error))
+        await channel.send(str(error_type))
+
+
+
 async def show_freqtrade(message):
     """
     Run update command depending on SO distro
@@ -531,6 +599,7 @@ async def send_welcome_msg(guild):
               "package system." + \
               "\n    **· /install**: Install a package." + \
               "\n    **· /freqtrade**: Show freqtrade." + \
+              "\n    **· /nfihold**: Maintain NostaligiaForInfinity Hold file." + \
               "\n    **· /uninstall**: Remove an installed package." + \
               "\n    **· /forbidden**: Show unavailable commands." + \
               "\n    **· /help**: Show this message." + \
@@ -584,6 +653,7 @@ async def send_command(command, channel):
             else:
                 try:
                     output += line.decode('utf-8')
+                    # print(type(output))
                     await msg_output.edit(content=format_as_code(output))
                 except Exception as e:
                     msg_error = str(e)
@@ -644,6 +714,9 @@ async def on_message(message):
                 await upgrade_system(message)
             elif msg_id in COMMANDS_QUEUE['install']:
                 await install_package(COMMANDS_QUEUE['install'][msg_id])
+            elif msg_id in COMMANDS_QUEUE['nfihold']:
+                print(msg_id)
+                await maintain_nfi(COMMANDS_QUEUE['nfihold'][msg_id])
                 del COMMANDS_QUEUE['install'][msg_id]
             elif msg_id in COMMANDS_QUEUE['uninstall']:
                 await remove_package(COMMANDS_QUEUE['uninstall'][msg_id])
@@ -697,6 +770,16 @@ async def on_message(message):
             await ask_password(message)
         return
 
+    if message.author.id in COMMANDS_QUEUE['nfihold']:
+        if message.content.lower() == 'cancel':
+            del COMMANDS_QUEUE['nfihold'][message.author.id]
+            response = "No trade will be added."
+            await message.channel.send(response)
+        else:
+            COMMANDS_QUEUE['nfihold'][message.author.id] = message
+            await maintain_nfi(message)
+        return
+
     if message.author.id in COMMANDS_QUEUE['uninstall']:
         # User must reply which package to install
         if message.content.lower() == 'cancel':
@@ -727,6 +810,12 @@ async def on_message(message):
         await message.channel.send("Write package name to install or " +
                                    "'cancel' to exit: ")
         COMMANDS_QUEUE['install'][message.author.id] = None
+    elif message.content.lower() == '/nfihold':    # Install package
+        mnfi = MaintainNFIHolds(message.channel)
+        msg_nfi = mnfi.help()
+        await message.channel.send(msg_nfi + "\n\nwrite your nfihold command or " +
+                                   "'cancel' to exit: ")
+        COMMANDS_QUEUE['nfihold'][message.author.id] = None
     elif message.content.lower() == '/uninstall':    # Remove package
         await message.channel.send("Write package name to uninstall or " +
                                    "'cancel' to exit: ")
@@ -735,7 +824,7 @@ async def on_message(message):
         await message.channel.send("Currently forbidden commands:")
         await show_forbidden_commands(message)
     elif 'freqtrade' in message.content.lower():    # Forbidden commands
-        print("Show freqtrade executed")
+        # print("Show freqtrade executed")
         await message.channel.send("freqtrade:")
         await show_freqtrade(message)
     elif message.content.lower() == '/help':    # Show help message
