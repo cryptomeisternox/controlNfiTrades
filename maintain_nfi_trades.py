@@ -32,7 +32,7 @@ class MaintainNFIHolds:
             json.dump(json_data, f, indent=4)
 
 
-    def add_trade_pair(self, pair, profit):
+    def addtradepair(self, pair, profit):
         """The save_hold_trade() method lists hold_trades data from a JSON file.
         "trade_pairs":
         {
@@ -49,15 +49,15 @@ class MaintainNFIHolds:
         #for i in trade_pairs["trade_pairs"]:
         #    _hold_trades["trade_pairs"][i] = trade_pairs["trade_pairs"][i]
         self._save_nfi_hold(_hold_trades)
-        self.list_trade_pair()
+        self.listtradepair()
 
-    def remove_trade_pair(self, pair):
+    def removetradepair(self, pair):
         """The remove_trade_pair() method removes a trade_pair from JSON file.
         :param pair: Pair to remove (ETH/BTC)
         :return: json object
         """
 
-        self.list_trade_pair()
+        self.listtradepair()
         _hold_trades = self._load_nfi_hold()
         try:
             del _hold_trades["trade_pairs"][pair]
@@ -65,10 +65,10 @@ class MaintainNFIHolds:
             print("Key " + pair + " not exists.")
 
         self._save_nfi_hold(_hold_trades)
-        self.list_trade_pair()
+        self.listtradepair()
 
 
-    def list_trade_pair(self) :
+    def listtradepair(self) :
         """The list_trade_pair() method lists trade_pairs from a JSON file.
         "trade_pairs":
         {
@@ -81,7 +81,7 @@ class MaintainNFIHolds:
         
         print(str(json.dumps(json_data["trade_pairs"], indent=4)))
         
-    def add_trade_id(self, pair, profit):
+    def addtradeid(self, pair, profit):
         """The add_trade_id() method adds a trade_id to a JSON file.
         "trade_pairs":
         {
@@ -100,16 +100,17 @@ class MaintainNFIHolds:
         #    _hold_trades["trade_pairs"][i] = trade_pairs["trade_pairs"][i]
 
         self._save_nfi_hold(_hold_trades)
-        self.list_trade_ids()
+        self.listtradeids()
 
-    def remove_trade_id(self, pair):
+    def removetradeid(self, pair):
         """The remove_trade_id() method removes a trade_id from JSON file.
         :param pair: Pair to remove (ETH/BTC)
         :return: json object
         """
         sys.stdout.write(f"Remove trade id **{pair}**\n")
 
-        self.list_trade_ids()
+        self.listtradeids()
+
         _hold_trades = self._load_nfi_hold()
         try:
             del _hold_trades["trade_ids"][pair]
@@ -119,10 +120,10 @@ class MaintainNFIHolds:
             sys.stdout.write("\n")
 
         self._save_nfi_hold(_hold_trades)
-        self.list_trade_pair()
+        #self.listtradepair()
 
 
-    def list_trade_ids(self) :
+    def listtradeids(self) :
         """The list_hold_trades() method lists trade_ids from a JSON file.
         "trade_pairs":
         {
@@ -131,6 +132,7 @@ class MaintainNFIHolds:
         }
         :return: json object
         """
+
         sys.stdout.write("List trade id\n")
         json_data = self._load_data()
         
@@ -152,7 +154,7 @@ class MaintainNFIHolds:
             if not x.startswith('_'):
                 doc = re.sub(':return:.*', '', getattr(maintain_nfi_holds, x).__doc__, flags=re.MULTILINE).rstrip()
                 docstring = "".join([i + "\n" for i in doc.splitlines() if i.strip().startswith(":param")])
-                print(f"{x}\n\t{docstring}\n")
+                #print(f'{x}\n\t{docstring}\n')
 
     
 
