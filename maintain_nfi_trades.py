@@ -92,6 +92,7 @@ class MaintainNFIHolds:
         :return: json object
         """
 
+        sys.stdout.write(f"Add trade id {pair} with {profit}\n")
         _hold_trades = self._load_nfi_hold()
         _hold_trades["trade_ids"][pair] = float(profit)
         #for i in trade_pairs["trade_pairs"]:
@@ -105,13 +106,16 @@ class MaintainNFIHolds:
         :param pair: Pair to remove (ETH/BTC)
         :return: json object
         """
+        sys.stdout.write(f"Remove trade id **{pair}**\n")
 
         self.list_trade_ids()
         _hold_trades = self._load_nfi_hold()
         try:
             del _hold_trades["trade_ids"][pair]
         except KeyError:
-            print("Key " + pair + " not exists.")
+            sys.stdout.write("\n")
+            sys.stdout.write("Key " + pair + " not exists.")
+            sys.stdout.write("\n")
 
         self._save_nfi_hold(_hold_trades)
         self.list_trade_pair()
@@ -126,9 +130,10 @@ class MaintainNFIHolds:
         }
         :return: json object
         """
+        sys.stdout.write("List trade id\n")
         json_data = self._load_data()
         
-        print(str(json.dumps(json_data["trade_ids"], indent=4)))
+        sys.stdout.write(str(json.dumps(json_data["trade_ids"], indent=4)))
         
     def help(self):
         """The list_hold_trades() method lists trade_ids from a JSON file.
@@ -159,7 +164,7 @@ def print_commands():
         #print("B" + str(y))
         if not x.startswith('_'):
             doc = re.sub(':return:.*', '', getattr(maintain_nfi_holds, x).__doc__, flags=re.MULTILINE).rstrip()
-            print(f"{x}\n\t{doc}\n")
+            sys.stdout.write("{x}\n\t{doc}\n")
 
 def main(args):
     if args.get("show"):
@@ -171,7 +176,7 @@ def main(args):
     m = [x for x, y in inspect.getmembers(maintain_nfi_holds) if not x.startswith('_')]
     command = args["command"]
     if command not in m:
-        print(f"Command {command} not defined")
+        sys.stdout.write('Command {command} not defined')
         print_commands()
         return
 
